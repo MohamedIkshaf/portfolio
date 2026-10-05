@@ -44,7 +44,7 @@ export function Navbar() {
           </div>
           <div className="flex flex-col">
             <span className="font-heading font-extrabold text-base tracking-tight text-[#1a1a1a] dark:text-[#fbf9ef] leading-tight">
-              DEV<span className="text-[#5f1cfc]">.</span>
+              Mohamed Ikshaf<span className="text-[#5f1cfc]">.</span>
             </span>
             <span className="text-[11px] font-medium text-[#888880] tracking-wider uppercase">
               Engineer & Designer
