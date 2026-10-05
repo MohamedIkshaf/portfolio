@@ -1,0 +1,345 @@
+// Portfolio — Prisma Schema
+// Database: Local PostgreSQL (same setup as futsal project)
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum Role {
+  ADMIN
+  USER
+}
+
+enum ProjectStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum SkillCategory {
+  FRONTEND
+  BACKEND
+  DATABASE
+  DEVOPS
+  TOOLS
+}
+
+enum CategoryType {
+  PROJECT
+  BLOG
+}
+
+// ============================================
+// AUTH / USER
+// ============================================
+
+model User {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  name           String?
+  hashedPassword String
+  image          String?
+  role           Role      @default(ADMIN)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  // Auth.js relations
+  accounts Account[]
+  sessions Session[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ============================================
+// PROJECTS
+// ============================================
+
+model Project {
+  id           String        @id @default(cuid())
+  title        String
+  slug         String        @unique
+  description  String        @db.Text
+  content      String?       @db.Text // MDX content
+  coverImage   String?
+  gallery      String[]      // Array of image URLs
+  techStack    String[]      // Array of technology names
+  features     String[]      // Array of feature descriptions
+  architecture String?       @db.Text
+  challenges   String?       @db.Text
+  lessons      String?       @db.Text
+  githubUrl    String?
+  liveUrl      String?
+  blogSlug     String?       // Link to related blog post
+  videoUrl     String?
+  status       ProjectStatus @default(DRAFT)
+  featured     Boolean       @default(false)
+  order        Int           @default(0)
+
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, featured])
+  @@index([slug])
+  @@map("projects")
+}
+
+// ============================================
+// BLOG
+// ============================================
+
+model Blog {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  excerpt     String?  @db.Text
+  content     String   @db.Text // MDX content
+  coverImage  String?
+  readingTime Int?     // in minutes
+  published   Boolean  @default(false)
+  featured    Boolean  @default(false)
+
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id])
+
+  tags BlogTag[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([published, featured])
+  @@index([slug])
+  @@map("blogs")
+}
+
+model Tag {
+  id    String    @id @default(cuid())
+  name  String    @unique
+  slug  String    @unique
+  blogs BlogTag[]
+
+  @@map("tags")
+}
+
+// Many-to-many join table for Blog <-> Tag
+model BlogTag {
+  blogId String
+  tagId  String
+
+  blog Blog @relation(fields: [blogId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([blogId, tagId])
+  @@map("blog_tags")
+}
+
+// ============================================
+// CATEGORIES (shared between Projects & Blogs)
+// ============================================
+
+model Category {
+  id   String       @id @default(cuid())
+  name String
+  slug String       @unique
+  type CategoryType
+
+  projects Project[]
+  blogs    Blog[]
+
+  @@map("categories")
+}
+
+// ============================================
+// SKILLS
+// ============================================
+
+model Skill {
+  id          String        @id @default(cuid())
+  name        String
+  icon        String?       // Icon name from lucide-react or URL
+  proficiency Int           @default(80) // 0–100
+  category    SkillCategory
+  order       Int           @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("skills")
+}
+
+// ============================================
+// EXPERIENCE
+// ============================================
+
+model Experience {
+  id          String    @id @default(cuid())
+  title       String
+  company     String
+  location    String?
+  startDate   DateTime
+  endDate     DateTime?
+  description String?   @db.Text
+  current     Boolean   @default(false)
+  order       Int       @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("experiences")
+}
+
+// ============================================
+// EDUCATION
+// ============================================
+
+model Education {
+  id          String    @id @default(cuid())
+  degree      String
+  institution String
+  location    String?
+  startDate   DateTime
+  endDate     DateTime?
+  description String?   @db.Text
+  order       Int       @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("educations")
+}
+
+// ============================================
+// CERTIFICATES
+// ============================================
+
+model Certificate {
+  id            String    @id @default(cuid())
+  title         String
+  issuer        String
+  issueDate     DateTime
+  expiryDate    DateTime?
+  credentialUrl String?
+  image         String?
+  order         Int       @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("certificates")
+}
+
+// ============================================
+// CONTACT MESSAGES
+// ============================================
+
+model ContactMessage {
+  id      String  @id @default(cuid())
+  name    String
+  email   String
+  subject String?
+  message String  @db.Text
+  read    Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([read])
+  @@map("contact_messages")
+}
+
+// ============================================
+// SOCIAL LINKS
+// ============================================
+
+model SocialLink {
+  id       String @id @default(cuid())
+  platform String // GITHUB, LINKEDIN, EMAIL, etc.
+  url      String
+  icon     String? // Icon name
+  order    Int    @default(0)
+
+  @@map("social_links")
+}
+
+// ============================================
+// SITE SETTINGS (singleton-ish — one row)
+// ============================================
+
+model Settings {
+  id             String  @id @default("default")
+  siteName       String  @default("Portfolio")
+  siteDescription String? @db.Text
+  heroTitle      String?
+  heroSubtitle   String?
+  aboutText      String? @db.Text
+  resumeUrl      String?
+  profileImage   String?
+  analyticsId    String? // Google Analytics ID
+
+  // Contact Information
+  email          String?
+  phone          String?
+  location       String?
+  availability   String?
+  responseTime   String?
+
+  // Social Information
+  githubUrl      String?
+  linkedinUrl    String?
+  twitterUrl     String?
+  youtubeUrl     String?
+  websiteUrl     String?
+
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
+}
